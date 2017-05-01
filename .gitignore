@@ -1,0 +1,8 @@
+/target/
+/.settings/
+/Input/
+/Output/
+/Temp/
+/.classpath
+/.project
+/comicator.properties
