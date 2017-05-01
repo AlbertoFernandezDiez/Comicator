@@ -4,6 +4,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -12,6 +14,7 @@ import org.apache.log4j.Logger;
 
 import com.alberto.comicator.actions.AbstractAction;
 import com.alberto.comicator.constants.ActionConstants;
+import com.alberto.exceptions.ImageManagerException;
 import com.alberto.manipulator.ImageManipulator;
 
 public class DataLoadAndPreparationAction extends AbstractAction {
@@ -38,67 +41,39 @@ public class DataLoadAndPreparationAction extends AbstractAction {
 			File tempFolder = new File(ActionConstants.FOLDER_TEMP_FILES);
 			File rawFolder = new File(ActionConstants.FOLDER_RAW_FILES);
 
+			File destinationFolder = null;
+
 			ImageManipulator manipulator = ImageManipulator.getMyManipulator();
 
 			FileUtils.cleanDirectory(tempFolder);
 
-			Collection<File> files = null;
+			List<File> files = null;
 
 			if (isCollection()) {
 				files = Arrays.asList(rawFolder.listFiles());
-			} else {
-				files = FileUtils.listFiles(rawFolder, TrueFileFilter.TRUE, TrueFileFilter.INSTANCE);
-			}
-			BufferedImage originalImage = null;
-			int currentIndex = 0;
-			for (File file : files) {
-				LOGGER.debug("FILE:\t" + file.getAbsolutePath());
-
-				if (isCollection()) {
-
-				} else {
-					if (FilenameUtils.isExtension(file.getName(), VALID_MIMETYPES)) {
-
-						originalImage = manipulator.openImageFromFile(file);
-
-						fileExtension = "." + FilenameUtils.getExtension(file.getName());
-						
-						if (isToGrayScale()) {
-							if (!manipulator.toGrayScale(originalImage)) {
-								this.ok = false;
-							}
-						}
-						
-						originalImage = manipulator.quitBorder(originalImage, getMarginTop(), getMarginBottom(), getMarginLeft(), getMarginRight());
-						
-						if (!isAutoSplitDisabled()) {
-
-							if (originalImage.getWidth() > originalImage.getHeight()) {
-
-								BufferedImage[] splittedImages = manipulator.splitImage(originalImage, false);
-
-								if (isRightToLeft()) {
-									manipulator.saveImage(splittedImages[1], new File(ActionConstants.FOLDER_TEMP_FILES,
-											String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
-									manipulator.saveImage(splittedImages[0], new File(ActionConstants.FOLDER_TEMP_FILES,
-											String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
-								} else {
-									manipulator.saveImage(splittedImages[0], new File(ActionConstants.FOLDER_TEMP_FILES,
-											String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
-									manipulator.saveImage(splittedImages[1], new File(ActionConstants.FOLDER_TEMP_FILES,
-											String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
-								}
-							} else {
-								manipulator.saveImage(originalImage, new File(ActionConstants.FOLDER_TEMP_FILES,
-										String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
-							}
-
-						} else {
-
-						}
+				for (File dir : files) {
+					if (dir.isDirectory()) {
+						destinationFolder = new File(tempFolder, dir.getName());
+						destinationFolder.mkdir();
+						loadImages(manipulator,
+								new LinkedList<File>(
+										FileUtils.listFiles(dir, TrueFileFilter.TRUE, TrueFileFilter.INSTANCE)),
+								destinationFolder);
 					}
 				}
 
+			} else {
+				files = Arrays.asList(rawFolder.listFiles());
+				if (files.size() == 1 && files.get(0).isDirectory()) {
+					File parentFolder = files.get(0);
+					destinationFolder = new File(tempFolder, parentFolder.getName());
+					destinationFolder.mkdir();
+					files = new LinkedList<File>(
+							FileUtils.listFiles(parentFolder, TrueFileFilter.TRUE, TrueFileFilter.INSTANCE));
+					loadImages(manipulator, files, destinationFolder);
+				} else {
+					this.ok = false;
+				}
 			}
 
 		} catch (Exception e) {
@@ -106,6 +81,66 @@ public class DataLoadAndPreparationAction extends AbstractAction {
 			LOGGER.error("An error ocurred", e);
 		}
 
+	}
+
+	private void loadImages(ImageManipulator manipulator, List<File> files, File destinationFolder)
+			throws ImageManagerException {
+		BufferedImage originalImage = null;
+		int currentIndex = 0;
+		for (File file : files) {
+			LOGGER.debug("FILE:\t" + file.getAbsolutePath());
+
+			currentIndex = processImage(manipulator, currentIndex, file, destinationFolder);
+
+		}
+	}
+
+	private int processImage(ImageManipulator manipulator, int currentIndex, File file, File destinationFolder)
+			throws ImageManagerException {
+		String fileExtension;
+		BufferedImage originalImage;
+		if (FilenameUtils.isExtension(file.getName(), VALID_MIMETYPES)) {
+
+			originalImage = manipulator.openImageFromFile(file);
+
+			fileExtension = "." + FilenameUtils.getExtension(file.getName());
+
+			if (isToGrayScale()) {
+				if (!manipulator.toGrayScale(originalImage)) {
+					this.ok = false;
+				}
+			}
+
+			originalImage = manipulator.quitBorder(originalImage, getMarginTop(), getMarginBottom(), getMarginLeft(),
+					getMarginRight());
+
+			if (!isAutoSplitDisabled()) {
+
+				if (originalImage.getWidth() > originalImage.getHeight()) {
+
+					BufferedImage[] splittedImages = manipulator.splitImage(originalImage, false);
+
+					if (isRightToLeft()) {
+						manipulator.saveImage(splittedImages[1], new File(destinationFolder,
+								String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
+						manipulator.saveImage(splittedImages[0], new File(destinationFolder,
+								String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
+					} else {
+						manipulator.saveImage(splittedImages[0], new File(destinationFolder,
+								String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
+						manipulator.saveImage(splittedImages[1], new File(destinationFolder,
+								String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
+					}
+				} else {
+					manipulator.saveImage(originalImage, new File(destinationFolder,
+							String.format(IMAGE_NAME_FORMAT, ++currentIndex) + fileExtension));
+				}
+
+			} else {
+
+			}
+		}
+		return currentIndex;
 	}
 
 	public boolean isCollection() {
