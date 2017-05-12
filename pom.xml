@@ -21,6 +21,8 @@
 			<groupId>diez.fernandez.alberto</groupId>
 			<artifactId>ImageManipulator</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/src/main/resources/ImageManipulator-0.0.1-SNAPSHOT.jar</systemPath>
 		</dependency>
 		<dependency>
 			<groupId>log4j</groupId>
