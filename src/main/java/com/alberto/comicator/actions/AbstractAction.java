@@ -1,5 +1,6 @@
 package com.alberto.comicator.actions;
 
+import com.alberto.comicator.exceptions.FatalException;
 import com.alberto.comicator.interfaces.Action;
 
 public abstract class AbstractAction implements Action {
@@ -8,7 +9,7 @@ public abstract class AbstractAction implements Action {
 	
 	protected AbstractAction(){}
 	
-	public abstract void run();
+	public abstract void run() throws FatalException;
 
 	public boolean isOk() {
 		return this.ok;

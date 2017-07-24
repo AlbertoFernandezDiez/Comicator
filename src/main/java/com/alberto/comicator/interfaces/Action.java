@@ -1,11 +1,14 @@
 package com.alberto.comicator.interfaces;
 
+import com.alberto.comicator.exceptions.FatalException;
+
 public interface Action {
 
 	/**
 	 * The code to be executed
+	 * @throws FatalException 
 	 */
-	public void run();
+	public void run() throws FatalException;
 
 	/**
 	 * Gives feedback of the execution result of {@link #run()}

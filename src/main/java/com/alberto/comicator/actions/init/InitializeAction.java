@@ -1,13 +1,22 @@
 package com.alberto.comicator.actions.init;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.log4j.Logger;
 
 import com.alberto.comicator.actions.AbstractAction;
 import com.alberto.comicator.constants.ActionConstants;
+import com.alberto.comicator.exceptions.FatalException;
+import com.alberto.comicator.exceptions.PropertiesException;
 
 public class InitializeAction extends AbstractAction {
 
@@ -17,7 +26,7 @@ public class InitializeAction extends AbstractAction {
 	}
 
 	@Override
-	public void run() {
+	public void run() throws FatalException {
 		LOGGER.info("Checking wether required folder structure exists");
 
 		File properties = new File(ActionConstants.FILE_PROPERTIES);
@@ -25,22 +34,26 @@ public class InitializeAction extends AbstractAction {
 		File folderInput = new File(ActionConstants.FOLDER_RAW_FILES);
 		File folderTemp = new File(ActionConstants.FOLDER_TEMP_FILES);
 
+		LOGGER.debug("Properties file path: \t" + properties.getAbsolutePath());
+		
 		if (!properties.exists()) {
 			LOGGER.warn(ActionConstants.FILE_PROPERTIES + " file does not exist, trying to create it");
-
 			this.ok = false;
 
-			File originalProperties = new File(
-					InitializeAction.class.getClassLoader().getResource(ActionConstants.FILE_PROPERTIES).getFile());
+			InputStream originalProperties = InitializeAction.class.getClassLoader().getResourceAsStream(ActionConstants.FILE_PROPERTIES);
 
-			if (!originalProperties.exists()) {
-				try {
-					FileUtils.copyFile(originalProperties, properties);
-					this.ok = true;
-				} catch (IOException e) {
-					LOGGER.error("Unable to create " + ActionConstants.FILE_PROPERTIES, e);
-				}
+					
+			try {
+				LOGGER.info("Trying to create the default options file");
+				Files.copy(originalProperties, properties.toPath(),StandardCopyOption.REPLACE_EXISTING);
+				LOGGER.info("File successfully created");
+			} catch (IOException e) {
+				throw new FatalException("Unable to create the default properties file", e);
+				
 			}
+			
+
+	
 		} else {
 			LOGGER.info("Using existing properties file:\t" + ActionConstants.FILE_PROPERTIES);
 
